@@ -1,9 +1,10 @@
 import e from "express"
-import { SignUp } from "../controllers/userController.js";
+import { getAllUsers, SignUp } from "../controllers/userController.js";
 
 const UserRouter = e.Router();
 
 
 UserRouter.post("/signup", SignUp);
+UserRouter.get("/users", getAllUsers);
 
 export default UserRouter;

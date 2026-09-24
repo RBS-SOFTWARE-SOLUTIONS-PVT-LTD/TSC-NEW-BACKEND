@@ -48,3 +48,23 @@ export const SignUp = async (req, res)=>{
         });
     }
 }
+
+export const getAllUsers = async (req, res)=>{
+    try {
+        const users = await User.find().select("-password");
+
+        res.status(200).json({
+            success: true,
+            userCount: users.length,
+            data : users
+        });
+
+
+    } catch (error) {
+        console.log("Error: "+ error.message);
+        res.status(500).json({
+            success : false,
+            message: "Server error during Fetch users 👎"
+        });
+    }
+}
