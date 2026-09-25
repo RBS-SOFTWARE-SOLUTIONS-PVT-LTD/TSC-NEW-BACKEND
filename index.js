@@ -5,7 +5,7 @@ import UserRouter from "./routes/userRoute.js";
 let app = express();
 
 app.use(express.json());
-app.use("/api/auth", UserRouter);
+app.use("/api/user", UserRouter);
 
 
 mongoose.connect("mongodb+srv://admin:123@cluster0.mvqv9dh.mongodb.net/?appName=Cluster0");
