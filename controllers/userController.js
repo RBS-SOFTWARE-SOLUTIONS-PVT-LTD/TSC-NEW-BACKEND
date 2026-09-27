@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
+import { generateToken } from "../utils/generateToken.js";
 
 export const SignUp = async (req, res)=>{
     try {
@@ -112,16 +113,7 @@ export const Login = async (req, res)=>{
         }
 
         //create jwt
-        const token = await jwt.sign(
-            {
-                userId : user._id,
-                role : user.role
-            },
-            "thawakalika password eka",
-            {
-                expiresIn: "7d"
-            }
-        );
+        const token = generateToken(user);
 
         //send respons
         res.status(200).json({
