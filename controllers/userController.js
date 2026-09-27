@@ -1,8 +1,6 @@
 import User from "../models/User.js";
-import bcrypt from "bcrypt"
-import jwt from "jsonwebtoken";
 import { generateToken } from "../utils/generateToken.js";
-import { comparePassword } from "../utils/hashPassword.js";
+import { comparePassword, hashPassword } from "../utils/hashPassword.js";
 
 export const SignUp = async (req, res)=>{
     try {
@@ -18,8 +16,7 @@ export const SignUp = async (req, res)=>{
         } 
 
         //Hash pwd
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = await hashPassword(password);
 
         //create new user
         const newUser = new User({
