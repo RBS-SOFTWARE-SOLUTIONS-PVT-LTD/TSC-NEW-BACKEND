@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
 import { generateToken } from "../utils/generateToken.js";
+import { comparePassword } from "../utils/hashPassword.js";
 
 export const SignUp = async (req, res)=>{
     try {
@@ -94,9 +95,7 @@ export const Login = async (req, res)=>{
         }
 
         //check pswd
-        const isPasswordCorrect = await bcrypt.compare(
-            password, user.password
-        );
+        const isPasswordCorrect = await comparePassword(password, user.password);
 
         if(!isPasswordCorrect){
             return res.status(401).json({
@@ -129,7 +128,7 @@ export const Login = async (req, res)=>{
             token : token
         })
     } catch (error) {
-        console.log("Error: "+ error.nessage);
+        console.log("Error: "+ error.message);
         res.status(500).json({
             success: false,
             message : "Internal Sever Error!"
