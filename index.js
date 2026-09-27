@@ -2,6 +2,7 @@ import express from "express"
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
 import UserRouter from "./routes/userRoute.js";
+import feedbackRouter from "./routes/feedbackRoute.js";
 import dotenv from "dotenv";
 import cors from "cors";
 
@@ -14,6 +15,7 @@ app.use(cors());
 
 app.use("/auth", authRoutes);
 app.use("/api/user", UserRouter);
+app.use("/api/feedback", feedbackRouter);
 
 mongoose.connect("mongodb+srv://admin:123@cluster0.mvqv9dh.mongodb.net/?appName=Cluster0");
 
