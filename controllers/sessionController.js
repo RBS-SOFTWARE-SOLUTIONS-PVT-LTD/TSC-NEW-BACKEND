@@ -123,3 +123,241 @@ export const CreateSession = async (req, res) => {
         });
     }
 };
+
+
+export const startSession = async (req, res) => {
+    try {
+        if (req.user.role !== "tutor") {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied. Only tutors can start a session."
+            });
+        }
+
+        const { id } = req.params;
+        const session = await Session.findById(id);
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Session not found."
+            });
+        }
+
+        const tutorId = req.user.userId || req.user._id;
+        if (session.tutorId.toString() !== tutorId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized. You are not the assigned tutor for this session."
+            });
+        }
+
+        if (session.status !== "scheduled") {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot start session. Current session status is '${session.status}'.`
+            });
+        }
+
+        const now = new Date();
+        const dynamicOtp = crypto.randomInt(100000, 999999).toString();
+        const qrPayload = crypto.randomBytes(16).toString("hex");
+        const verificationExpiry = new Date(session.scheduledEndTime.getTime() + 15 * 60 * 1000); 
+
+        session.status = "active";
+        session.actualStartTime = now;
+        session.otp = dynamicOtp;
+        session.otpExpiresAt = verificationExpiry;
+        session.qrCode = qrPayload;
+        session.qrExpiresAt = verificationExpiry;
+
+        await session.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Session started successfully!",
+            data: {
+                sessionId: session._id,
+                subject: session.subject,
+                topic: session.topic,
+                status: session.status,
+                type: session.type,
+                actualStartTime: session.actualStartTime,
+                otp: session.otp,
+                qrCode: session.qrCode,
+                otpExpiresAt: session.otpExpiresAt
+            }
+        });
+
+    } catch (error) {
+        console.error("Error starting session:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while starting session."
+        });
+    }
+};
+
+
+
+
+export const endSession = async (req, res) => {
+    try {
+        if (req.user.role !== "tutor") {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied. Only tutors can end a session."
+            });
+        }
+
+        const { id } = req.params;
+        const session = await Session.findById(id);
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Session not found."
+            });
+        }
+
+        const tutorId = req.user.userId || req.user._id;
+        if (session.tutorId.toString() !== tutorId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized. You are not the assigned tutor for this session."
+            });
+        }
+
+        if (session.status !== "active") {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot end session. Session status must be 'active', but is currently '${session.status}'.`
+            });
+        }
+
+        const actualEndTime = new Date();
+        const actualStartTime = session.actualStartTime || session.scheduledStartTime;
+
+        // Calculate official tutoring duration automatically (milliseconds -> minutes)
+        const diffMs = actualEndTime.getTime() - actualStartTime.getTime();
+        const durationMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
+        const durationHours = Number((durationMinutes / 60).toFixed(2));
+
+        session.status = "completed";
+        session.actualEndTime = actualEndTime;
+        session.durationMinutes = durationMinutes;
+        session.numOfStudents = session.loggedStudents ? session.loggedStudents.length : 0;
+
+        await session.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Session completed successfully!",
+            data: {
+                sessionId: session._id,
+                subject: session.subject,
+                topic: session.topic,
+                status: session.status,
+                actualStartTime: session.actualStartTime,
+                actualEndTime: session.actualEndTime,
+                durationMinutes: session.durationMinutes,
+                durationHours: durationHours,
+                numOfStudents: session.numOfStudents
+            }
+        });
+
+    } catch (error) {
+        console.error("Error ending session:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while ending session."
+        });
+    }
+};
+
+
+export const cancelSession = async (req, res) => {
+    try {
+        if (req.user.role !== "tutor") {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied. Only tutors can cancel a session."
+            });
+        }
+
+        const { id } = req.params;
+        const session = await Session.findById(id);
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Session not found."
+            });
+        }
+
+        const tutorId = req.user.userId || req.user._id;
+        if (session.tutorId.toString() !== tutorId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized. You are not the assigned tutor for this session."
+            });
+        }
+
+        if (session.status !== "scheduled") {
+            return res.status(400).json({
+                success: false,
+                message: `Only scheduled sessions can be cancelled. Current status is '${session.status}'.`
+            });
+        }
+
+        session.status = "cancelled";
+        await session.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Session cancelled successfully.",
+            data: {
+                sessionId: session._id,
+                status: session.status
+            }
+        });
+
+    } catch (error) {
+        console.error("Error cancelling session:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while cancelling session."
+        });
+    }
+};
+
+
+export const getSessionById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const session = await Session.findById(id)
+            .populate("tutorId", "name email faculty")
+            .populate("loggedStudents.studentId", "name email userId faculty");
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Session not found."
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: session
+        });
+
+    } catch (error) {
+        console.error("Error fetching session:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching session details."
+        });
+    }
+};
+
+

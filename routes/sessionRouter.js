@@ -1,11 +1,20 @@
-import e from "express";
-import { CreateSession } from "../controllers/sessionController.js";
+import express from "express";
+import { 
+    CreateSession, 
+    startSession, 
+    endSession, 
+    cancelSession, 
+    getSessionById 
+} from "../controllers/sessionController.js";
 import { authenticateToken } from "../middlewares/authMiddleware.js";
 
-const sessionRouter = e.Router();
+const sessionRouter = express.Router();
 
-sessionRouter.post("/create",authenticateToken,CreateSession);
-
-
+// Session lifecycle routes
+sessionRouter.post("/create", authenticateToken, CreateSession);
+sessionRouter.patch("/:id/start", authenticateToken, startSession);
+sessionRouter.patch("/:id/end", authenticateToken, endSession);
+sessionRouter.patch("/:id/cancel", authenticateToken, cancelSession);
+sessionRouter.get("/:id", authenticateToken, getSessionById);
 
 export default sessionRouter;
