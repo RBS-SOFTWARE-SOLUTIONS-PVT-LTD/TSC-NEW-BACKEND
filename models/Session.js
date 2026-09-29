@@ -76,8 +76,24 @@ const sessionSchema = new Schema({
 
     qrExpiresAt: {
       type: Date
-    }
-  },
+    },
+    otp: {
+      type: String
+    },
+    otpExpiresAt: {
+      type: Date
+    },
+    loggedStudents: [{
+      studentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      },
+      joinedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }]}
+  ,
   {
     timestamps: true
   });
