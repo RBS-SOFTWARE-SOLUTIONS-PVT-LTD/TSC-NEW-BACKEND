@@ -1,4 +1,4 @@
-import { getTutorRatingById,getHighestRatedTutor } from "../services/ratingService.js";
+import { getTutorRatingById, getHighestRatedTutor } from "../services/ratingService.js";
 
 export const getTutorRating = async (req, res) => {
     try {

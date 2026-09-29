@@ -6,6 +6,7 @@ import feedbackRouter from "./routes/feedbackRoute.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import sessionRouter from "./routes/sessionRouter.js";
+import scoreRouter from "./routes/scoreRoutes.js";
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use("/auth", authRoutes);
 app.use("/api/user", UserRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/session", sessionRouter);
+app.use("/api/score", scoreRouter);
 
 mongoose.connect("mongodb+srv://admin:123@cluster0.mvqv9dh.mongodb.net/?appName=Cluster0");
 
