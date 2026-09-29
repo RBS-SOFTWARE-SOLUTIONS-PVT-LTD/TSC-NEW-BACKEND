@@ -86,18 +86,27 @@ const sessionSchema = new Schema({
     loggedStudents: [{
       studentId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: "User",
+        required: true
       },
       joinedAt: {
         type: Date,
         default: Date.now
+      },
+      verificationMethod: {
+        type: String,
+        enum: ["otp", "qr", "online"],
+        default: "otp"
       }
-    }]}
-  ,
+    }]
+  },
   {
     timestamps: true
   });
 
+  // Indexes for query performance and fast lookup
+  sessionSchema.index({ tutorId: 1, status: 1 });
+  sessionSchema.index({ "loggedStudents.studentId": 1 });
 
   const Session = mongoose.model("Session", sessionSchema);
 
