@@ -1,4 +1,4 @@
-import { getLiveScoresService, getMonthlyScoresService, getTutorOwnCurrentScoreService } from "../services/scoreService.js";
+import { getLiveScoresService, getMonthlyScoresService, getTutorOwnCurrentScoreService, getAnnualScoresService, getAnnualAwardsService } from "../services/scoreService.js";
 
 /**
  * Controller to get live scores for the current month.
@@ -54,6 +54,70 @@ export const getMonthlyScores = async (req, res) => {
 };
 
 /**
+ * Controller to get annual scores for a specified year.
+ */
+export const getAnnualScores = async (req, res) => {
+    try {
+        let { year } = req.query;
+
+        const now = new Date();
+        const targetYear = year ? parseInt(year, 10) : now.getUTCFullYear();
+
+        if (isNaN(targetYear) || targetYear < 2000 || targetYear > 2100) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid year query parameter provided."
+            });
+        }
+
+        const result = await getAnnualScoresService(targetYear);
+        res.status(200).json({
+            success: true,
+            message: `Annual tutor scores for ${targetYear} fetched successfully`,
+            data: result
+        });
+    } catch (error) {
+        console.error("Error fetching annual scores:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching annual scores"
+        });
+    }
+};
+
+/**
+ * Controller to get annual awards for tutors for a specified year.
+ */
+export const getAnnualAwards = async (req, res) => {
+    try {
+        let { year } = req.query;
+
+        const now = new Date();
+        const targetYear = year ? parseInt(year, 10) : now.getUTCFullYear();
+
+        if (isNaN(targetYear) || targetYear < 2000 || targetYear > 2100) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid year query parameter provided."
+            });
+        }
+
+        const result = await getAnnualAwardsService(targetYear);
+        res.status(200).json({
+            success: true,
+            message: `Annual tutor awards for ${targetYear} fetched successfully`,
+            data: result
+        });
+    } catch (error) {
+        console.error("Error fetching annual awards:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching annual awards"
+        });
+    }
+};
+
+/**
  * Controller for a tutor to view their own live current score.
  */
 export const getMyCurrentScore = async (req, res) => {
@@ -88,4 +152,6 @@ export const getMyCurrentScore = async (req, res) => {
         });
     }
 };
+
+
 

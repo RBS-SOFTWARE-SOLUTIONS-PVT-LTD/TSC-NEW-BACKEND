@@ -191,3 +191,221 @@ export const getTutorOwnCurrentScoreService = async (tutorId) => {
     };
 };
 
+/**
+ * Calculates annual score for all active tutors for a specified year.
+ * AS = (AHS * 30%) + (AMS * 70%)
+ * AMS = Total Monthly Score / Number of months
+ * AHS = (Tutor's Total Annual Hours / Highest Tutor Annual Hours) * 100
+ * @param {number} year 
+ */
+export const getAnnualScoresService = async (year) => {
+    const now = new Date();
+    const currentYear = now.getUTCFullYear();
+
+    let monthsCount = 12;
+    if (year === currentYear) {
+        monthsCount = now.getUTCMonth() + 1;
+    } else if (year > currentYear) {
+        monthsCount = 1;
+    }
+
+    const startDate = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+    const endDate = year === currentYear
+        ? now
+        : new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+    // 1. Get all active tutors
+    const tutors = await User.find({ role: "tutor", status: { $ne: "suspended" } }).select("name email userId");
+
+    if (tutors.length === 0) {
+        return {
+            period: `${year}`,
+            year,
+            monthsEvaluated: monthsCount,
+            startDate,
+            endDate,
+            tutorScores: []
+        };
+    }
+
+    const tutorIds = tutors.map(t => t._id);
+
+    // 2. Compute total annual hours per tutor in the year
+    const annualSessionHours = await Session.aggregate([
+        {
+            $match: {
+                tutorId: { $in: tutorIds },
+                status: "completed",
+                date: { $gte: startDate, $lte: endDate }
+            }
+        },
+        {
+            $group: {
+                _id: "$tutorId",
+                totalMinutes: { $sum: "$durationMinutes" },
+                totalSessions: { $sum: 1 }
+            }
+        }
+    ]);
+
+    const annualHoursMap = new Map();
+    annualSessionHours.forEach(ash => {
+        annualHoursMap.set(ash._id.toString(), {
+            totalHours: Number((ash.totalMinutes / 60).toFixed(2)),
+            totalSessions: ash.totalSessions
+        });
+    });
+
+    let highestTutorAnnualHours = 0;
+    tutors.forEach(tutor => {
+        const data = annualHoursMap.get(tutor._id.toString());
+        const hours = data ? data.totalHours : 0;
+        if (hours > highestTutorAnnualHours) {
+            highestTutorAnnualHours = hours;
+        }
+    });
+
+    // 3. Compute Total Monthly Score for each tutor across evaluated months
+    const monthlyScoresSumMap = new Map();
+    tutors.forEach(t => monthlyScoresSumMap.set(t._id.toString(), 0));
+
+    for (let month = 1; month <= monthsCount; month++) {
+        let monthlyData;
+        if (year === currentYear && month === monthsCount) {
+            monthlyData = await getLiveScoresService();
+        } else {
+            monthlyData = await getMonthlyScoresService(year, month);
+        }
+
+        if (monthlyData && monthlyData.tutorScores) {
+            monthlyData.tutorScores.forEach(ts => {
+                const tid = ts.tutorId.toString();
+                if (monthlyScoresSumMap.has(tid)) {
+                    const currentSum = monthlyScoresSumMap.get(tid);
+                    monthlyScoresSumMap.set(tid, currentSum + (ts.scores?.monthlyScore_MS || 0));
+                }
+            });
+        }
+    }
+
+    // 4. Calculate Annual Score (AS) for each tutor
+    const results = tutors.map(tutor => {
+        const tid = tutor._id.toString();
+        const annualData = annualHoursMap.get(tid) || { totalHours: 0, totalSessions: 0 };
+        const tutorAnnualHours = annualData.totalHours;
+        const totalMonthlyScore = monthlyScoresSumMap.get(tid) || 0;
+
+        // AMS = Total Monthly Score / Number of months
+        const averageMonthlyScore_AMS = Number((totalMonthlyScore / monthsCount).toFixed(2));
+
+        // AHS = (Tutor's Total Annual Hours / Highest Tutor Annual Hours) * 100
+        const annualHourScore_AHS = highestTutorAnnualHours > 0
+            ? Number(((tutorAnnualHours / highestTutorAnnualHours) * 100).toFixed(2))
+            : 0;
+
+        // AS = (AHS * 30%) + (AMS * 70%)
+        const annualScore_AS = Number(((annualHourScore_AHS * 0.30) + (averageMonthlyScore_AMS * 0.70)).toFixed(2));
+        const award = getAwardTier(annualScore_AS);
+
+        return {
+            tutorId: tutor._id,
+            userId: tutor.userId,
+            name: tutor.name,
+            email: tutor.email,
+            metrics: {
+                totalAnnualHours: tutorAnnualHours,
+                totalAnnualSessions: annualData.totalSessions,
+                highestTutorAnnualHours,
+                totalMonthlyScoreSum: Number(totalMonthlyScore.toFixed(2)),
+                monthsEvaluated: monthsCount
+            },
+            scores: {
+                averageMonthlyScore_AMS,
+                annualHourScore_AHS,
+                annualScore_AS,
+                award
+            }
+        };
+    });
+
+    // Sort by Annual Score (AS) descending
+    results.sort((a, b) => b.scores.annualScore_AS - a.scores.annualScore_AS);
+
+    // Assign rank
+    const tutorScores = results.map((item, index) => ({
+        rank: index + 1,
+        ...item
+    }));
+
+    return {
+        period: `${year}`,
+        year,
+        monthsEvaluated: monthsCount,
+        startDate,
+        endDate,
+        tutorScores
+    };
+};
+
+/**
+ * Helper to determine award tier based on Annual Score (AS).
+ * 90-100: Gold
+ * 80-89.99: Silver
+ * 70-79.99: Bronze
+ * Below 70: No award
+ */
+export const getAwardTier = (score) => {
+    if (score >= 90) return "Gold";
+    if (score >= 80) return "Silver";
+    if (score >= 70) return "Bronze";
+    return "No award";
+};
+
+/**
+ * Calculates and returns annual awards summary and list for tutors in a specified year.
+ * @param {number} year 
+ */
+export const getAnnualAwardsService = async (year) => {
+    const annualScoreData = await getAnnualScoresService(year);
+    const tutorScores = annualScoreData.tutorScores || [];
+
+    let goldCount = 0;
+    let silverCount = 0;
+    let bronzeCount = 0;
+    let noAwardCount = 0;
+
+    const tutorAwards = tutorScores.map(t => {
+        const award = t.scores?.award || getAwardTier(t.scores?.annualScore_AS || 0);
+        if (award === "Gold") goldCount++;
+        else if (award === "Silver") silverCount++;
+        else if (award === "Bronze") bronzeCount++;
+        else noAwardCount++;
+
+        return {
+            rank: t.rank,
+            tutorId: t.tutorId,
+            userId: t.userId,
+            name: t.name,
+            email: t.email,
+            annualScore_AS: t.scores?.annualScore_AS || 0,
+            award
+        };
+    });
+
+    return {
+        period: annualScoreData.period,
+        year: annualScoreData.year,
+        monthsEvaluated: annualScoreData.monthsEvaluated,
+        awardSummary: {
+            goldCount,
+            silverCount,
+            bronzeCount,
+            noAwardCount,
+            totalTutors: tutorAwards.length
+        },
+        tutorAwards
+    };
+};
+
+
+

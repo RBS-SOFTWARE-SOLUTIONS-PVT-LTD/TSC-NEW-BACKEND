@@ -105,7 +105,8 @@ export const CreateSession = async (req, res) => {
                 date: newSession.date,
                 scheduledStartTime: newSession.scheduledStartTime,
                 scheduledEndTime: newSession.scheduledEndTime,
-                tutor: tutorName || "Tutor"
+                tutor: tutorName || "Tutor",
+                otp: newSession.otp
             }
         });
 
