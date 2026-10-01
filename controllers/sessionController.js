@@ -586,4 +586,70 @@ export const getStudentAttendanceHistory = async (req, res) => {
     }
 };
 
+export const getAllSessions = async (req, res) => {
+    try {
+        const { status, subject, tutorId, type, search } = req.query;
+        const filter = {};
+
+        if (status && status !== "all") {
+            filter.status = status;
+        }
+        if (subject) {
+            filter.subject = { $regex: subject, $options: "i" };
+        }
+        if (type) {
+            filter.type = type;
+        }
+        if (tutorId) {
+            filter.tutorId = tutorId;
+        }
+        if (search) {
+            filter.$or = [
+                { subject: { $regex: search, $options: "i" } },
+                { topic: { $regex: search, $options: "i" } },
+                { location: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        const sessions = await Session.find(filter)
+            .populate("tutorId", "name email faculty userId")
+            .sort({ date: -1, scheduledStartTime: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: sessions.length,
+            data: sessions
+        });
+    } catch (error) {
+        console.error("Error fetching sessions:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching sessions."
+        });
+    }
+};
+
+export const getTutorSessions = async (req, res) => {
+    try {
+        const tutorId = req.user.userId || req.user._id || req.user.id;
+        const sessions = await Session.find({ tutorId })
+            .populate("tutorId", "name email faculty userId")
+            .populate("loggedStudents.studentId", "name email userId faculty")
+            .sort({ date: -1, scheduledStartTime: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: sessions.length,
+            data: sessions
+        });
+    } catch (error) {
+        console.error("Error fetching tutor sessions:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error while fetching tutor sessions."
+        });
+    }
+};
+
+
 
