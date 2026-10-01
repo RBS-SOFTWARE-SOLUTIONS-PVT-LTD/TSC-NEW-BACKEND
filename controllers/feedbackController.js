@@ -1,10 +1,10 @@
 import { createFeedback } from "../services/feedbackService.js";
+import Feedback from "../models/feedback.js";
 
 export const submitFeedback = async (req, res) => {
     try {
-
         // Get student ID from logged-in user's JWT
-        const studentId = req.user.userId;
+        const studentId = req.user.userId || req.user._id || req.user.id;
 
         // Get data from request body
         const {
@@ -32,8 +32,8 @@ export const submitFeedback = async (req, res) => {
         const feedback = await createFeedback(
             studentId,
             sessionId,
-            rating,
-            comment
+            Number(rating),
+            comment || ""
         );
 
         return res.status(201).json({
@@ -43,7 +43,73 @@ export const submitFeedback = async (req, res) => {
         });
 
     } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 
+export const getSessionFeedback = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const feedbacks = await Feedback.find({ sessionId })
+            .populate("studentId", "name faculty userId")
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: feedbacks.length,
+            data: feedbacks
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const getTutorFeedback = async (req, res) => {
+    try {
+        const tutorId = req.params.tutorId || req.user.userId || req.user._id || req.user.id;
+        const feedbacks = await Feedback.find({ tutorId })
+            .populate("studentId", "name faculty userId")
+            .populate("sessionId", "subject topic date")
+            .sort({ createdAt: -1 });
+
+        const averageRating = feedbacks.length > 0 
+            ? (feedbacks.reduce((acc, f) => acc + f.rating, 0) / feedbacks.length).toFixed(1)
+            : 0;
+
+        return res.status(200).json({
+            success: true,
+            count: feedbacks.length,
+            averageRating: Number(averageRating),
+            data: feedbacks
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const getAllFeedbacks = async (req, res) => {
+    try {
+        const feedbacks = await Feedback.find()
+            .populate("studentId", "name email faculty userId")
+            .populate("tutorId", "name email faculty userId")
+            .populate("sessionId", "subject topic date")
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: feedbacks.length,
+            data: feedbacks
+        });
+    } catch (error) {
         return res.status(500).json({
             success: false,
             message: error.message
