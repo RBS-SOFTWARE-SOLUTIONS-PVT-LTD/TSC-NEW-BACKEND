@@ -61,7 +61,8 @@ export const CreateSession = async (req, res) => {
 
         const sessionLocation = type === "online" ? (location || "Online") : location;
         const generatedOtp = crypto.randomInt(100000, 999999).toString();
-        const otpExpiresAt = new Date(endTime.getTime());
+        const otpExpiresAt = new Date(Math.max(endTime.getTime() + 60 * 60 * 1000, Date.now() + 4 * 60 * 60 * 1000));
+
 
         // Get tutor name from token if available, or fetch from DB
         let tutorName = req.user.name;
@@ -162,7 +163,8 @@ export const startSession = async (req, res) => {
         const now = new Date();
         const dynamicOtp = crypto.randomInt(100000, 999999).toString();
         const qrPayload = crypto.randomBytes(16).toString("hex");
-        const verificationExpiry = new Date(session.scheduledEndTime.getTime() + 15 * 60 * 1000); 
+        const scheduledEnd = session.scheduledEndTime ? new Date(session.scheduledEndTime).getTime() : 0;
+        const verificationExpiry = new Date(Math.max(scheduledEnd + 60 * 60 * 1000, now.getTime() + 4 * 60 * 60 * 1000)); 
 
         session.status = "active";
         session.actualStartTime = now;
