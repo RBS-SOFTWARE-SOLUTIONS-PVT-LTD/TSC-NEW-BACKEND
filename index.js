@@ -36,28 +36,31 @@ app.use((req, res, next) => {
 
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb+srv://admin:123@cluster0.mvqv9dh.mongodb.net/?appName=Cluster0";
 
-// Cached Mongoose Connection for Serverless (Vercel) & Local
-let isConnected = false;
-
+// Database Connection
 const connectDB = async () => {
-  if (isConnected && mongoose.connection.readyState === 1) return;
+  if (mongoose.connection.readyState >= 1) return;
   try {
-    const db = await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    isConnected = db.connections[0].readyState === 1;
-    console.log("DB established successfully 🤖📱");
+    await mongoose.connect(MONGO_URI);
   } catch (err) {
     console.error("MongoDB Connection Error:", err.message);
   }
 };
 
-// Ensure database connection is active before processing any API request
+mongoose.connection.once("open", () => {
+  console.log("DB established successfully 🤖📱");
+});
+
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB connection error:", err);
+});
+
+// Trigger connection immediately
+connectDB();
+
+// Ensure DB is connected for serverless invocations
 app.use(async (req, res, next) => {
-  try {
+  if (mongoose.connection.readyState === 0) {
     await connectDB();
-  } catch (err) {
-    console.error("DB Middleware Error:", err);
   }
   next();
 });
