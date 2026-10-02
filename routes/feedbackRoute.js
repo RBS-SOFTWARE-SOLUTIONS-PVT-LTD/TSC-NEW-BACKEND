@@ -16,7 +16,8 @@ feedbackRouter.post("/", authenticateToken, submitFeedback);
 
 // Retrieval routes
 feedbackRouter.get("/session/:sessionId", authenticateToken, getSessionFeedback);
-feedbackRouter.get("/tutor/:tutorId?", authenticateToken, getTutorFeedback);
+feedbackRouter.get("/tutor", authenticateToken, getTutorFeedback);
+feedbackRouter.get("/tutor/:tutorId", authenticateToken, getTutorFeedback);
 feedbackRouter.get("/all", authenticateToken, getAllFeedbacks);
 
 export default feedbackRouter;
