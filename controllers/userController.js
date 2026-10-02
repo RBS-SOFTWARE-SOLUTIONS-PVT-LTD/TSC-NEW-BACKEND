@@ -1,5 +1,6 @@
 import User from "../models/User.js";
-import bcrypt from "bcrypt"
+import { generateToken } from "../utils/generateToken.js";
+import { comparePassword, hashPassword } from "../utils/hashPassword.js";
 
 export const SignUp = async (req, res)=>{
     try {
@@ -15,8 +16,7 @@ export const SignUp = async (req, res)=>{
         } 
 
         //Hash pwd
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = await hashPassword(password);
 
         //create new user
         const newUser = new User({
@@ -68,3 +68,67 @@ export const getAllUsers = async (req, res)=>{
         });
     }
 }
+
+export const Login = async (req, res)=>{
+    try {
+        const {email, password} = req.body;
+
+        //check if both given
+        if(!email || !password){
+            return res.status(400).json({
+                success: false,
+                message: "Email and password 're required!"
+            });
+        }
+
+        //find user
+        const user = await User.findOne({ email });
+
+        if(!user){
+            return res.status(401).json({
+                success: false,
+                message : "Invalid email or password!"
+            });
+        }
+
+        //check pswd
+        const isPasswordCorrect = await comparePassword(password, user.password);
+
+        if(!isPasswordCorrect){
+            return res.status(401).json({
+                success: false,
+                message: "Invalid email or password!"
+            });
+        }
+
+        if(user.status == "suspended"){
+            return res.status(403).json({
+                success: false,
+                message: "User account has been suspended!"
+            });
+        }
+
+        //create jwt
+        const token = generateToken(user);
+
+        //send respons
+        res.status(200).json({
+            success: true,
+            message : "User login in successfully!",
+            user : {
+                id : user._id,
+                name : user.name,
+                email : user.email,
+                role : user.role,
+                faculty : user.faculty,
+            },
+            token : token
+        })
+    } catch (error) {
+        console.log("Error: "+ error.message);
+        res.status(500).json({
+            success: false,
+            message : "Internal Sever Error!"
+        });
+    }
+}   
