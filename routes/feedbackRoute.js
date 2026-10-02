@@ -8,7 +8,6 @@ import {
 } from "../controllers/feedbackController.js";
 
 import { authenticateToken } from "../middlewares/authMiddleware.js";
-import { authMiddlewaretemp } from "../middlewares/authMiddlewareTEMP.js";
 
 import {
     getTutorRating,
@@ -20,6 +19,7 @@ const feedbackRouter = express.Router();
 // Submit feedback
 feedbackRouter.post("/feedback", authenticateToken, submitFeedback);
 feedbackRouter.post("/", authenticateToken, submitFeedback);
+
 
 // Feedback retrieval
 feedbackRouter.get("/session/:sessionId", authenticateToken, getSessionFeedback);
