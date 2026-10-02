@@ -1,4 +1,4 @@
-//This is just for Sijja's JWT verification.
+// This supports both standard JWT secret and temporary fallback for testing
 
 import jwt from "jsonwebtoken";
 
@@ -22,13 +22,20 @@ export const authMiddlewaretemp = (req, res, next) => {
             });
         }
 
-        const decoded = jwt.verify(
-            token,
-            "thawakalika password eka"
-        );
+        let decoded;
+        try {
+            decoded = jwt.verify(
+                token,
+                process.env.JWT_SECRET || "hello_123"
+            );
+        } catch (err) {
+            decoded = jwt.verify(
+                token,
+                "thawakalika password eka"
+            );
+        }
 
         req.user = decoded;
-
         next();
 
     } catch (error) {
@@ -38,4 +45,3 @@ export const authMiddlewaretemp = (req, res, next) => {
         });
     }
 };
-
